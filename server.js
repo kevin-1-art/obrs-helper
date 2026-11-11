@@ -25,7 +25,8 @@ const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const DATABASE_AUTH_ENABLED = Boolean(DATABASE_URL);
 const LEGACY_AUTH_ENABLED = Boolean(APP_ACCESS_PASSWORD && APP_SESSION_SECRET);
 const APP_AUTH_ENABLED = DATABASE_AUTH_ENABLED || LEGACY_AUTH_ENABLED;
-const USER_TABLE = 'obrs_helper_users';
+const USER_SCHEMA = 'obrs_helper';
+const USER_TABLE = `${USER_SCHEMA}.users`;
 const BOOTSTRAP_LOCK_ID = 918273645;
 const PASSWORD_MIN_LENGTH = 12;
 const PASSWORD_MAX_BYTES = 72;
@@ -33,7 +34,7 @@ const DUMMY_PASSWORD_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex
 const authPool = DATABASE_AUTH_ENABLED
   ? new Pool({
       connectionString: DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined,
       max: 5,
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 10000
@@ -290,6 +291,7 @@ function validateNewPassword(req, res) {
 }
 
 async function initializeAccountDatabase() {
+  await authPool.query(`CREATE SCHEMA IF NOT EXISTS ${USER_SCHEMA}`);
   await authPool.query(
     `CREATE TABLE IF NOT EXISTS ${USER_TABLE} (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

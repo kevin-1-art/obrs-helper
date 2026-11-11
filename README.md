@@ -25,7 +25,9 @@ The unlock-file request uses **POST**, as confirmed for this installation. Its m
 
 ## Render deployment
 
-The repository includes a Render Blueprint in `render.yaml`, which provisions a free Render Postgres database and connects it to the web service. For an existing deployment, sync the updated Blueprint from the Render dashboard. During that sync, set `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` directly in Render; use a unique password of at least 12 characters. Render generates `APP_SESSION_SECRET`. The first administrator is created only when the accounts table is empty; changing bootstrap environment values later does not overwrite existing accounts.
+The repository includes a Render Blueprint in `render.yaml`. This workspace already has its one free Postgres instance in a different project and region, so the Blueprint expects `DATABASE_URL` to be set manually in the web service's Render environment. Use the existing database's external connection URL, preserve TLS certificate verification, and restrict its inbound IP allowlist to the web service's outbound IP ranges. The app creates and uses only its dedicated `obrs_helper` schema; the database instance is still shared with its existing project. Cross-region external connections are slower and count toward free service-initiated traffic limits.
+
+For an existing deployment, sync the updated Blueprint from the Render dashboard, set `DATABASE_URL`, and set `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` directly in Render; use a unique password of at least 12 characters. Render generates `APP_SESSION_SECRET`. The first administrator is created only when the accounts table is empty; changing bootstrap environment values later does not overwrite existing accounts.
 
 **Free Render Postgres expires 30 days after creation, and its data (including all user accounts) is deleted.** This is suitable only for a temporary trial. Upgrade the database before expiry if accounts must persist. Render also spins down free web services when idle.
 

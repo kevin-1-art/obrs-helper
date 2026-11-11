@@ -14,20 +14,10 @@ services:
       - key: OBRS_BASE_URL
         value: https://obrs-api.ursb.go.ug
       - key: DATABASE_URL
-        fromDatabase:
-          name: obrs-helper-accounts
-          property: connectionString
+        sync: false
       - key: BOOTSTRAP_ADMIN_USERNAME
         sync: false
       - key: BOOTSTRAP_ADMIN_PASSWORD
         sync: false
       - key: APP_SESSION_SECRET
         generateValue: true
-
-databases:
-  - name: obrs-helper-accounts
-    databaseName: obrs_helper_accounts
-    user: obrs_helper
-    plan: free
-    region: oregon
-    ipAllowList: []
