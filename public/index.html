@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#153a35">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <title>OBRS Helper</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">OK</span>
+      <div>
+        <p class="eyebrow">Registry tools</p>
+        <h1>OBRS Helper</h1>
+      </div>
+    </div>
+    <span class="secure-label"><span aria-hidden="true">●</span> Private session</span>
+  </header>
+
+  <main class="page">
+    <section class="token-panel panel" aria-labelledby="token-heading">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Access</p>
+          <h2 id="token-heading">Bearer token</h2>
+        </div>
+        <span class="memory-note">Saved for this tab session · list and unlock only</span>
+      </div>
+      <div class="token-row">
+        <label class="sr-only" for="token">Bearer token</label>
+        <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your authorised token">
+        <button id="toggle-token" class="button button-muted" type="button" aria-pressed="false">Show</button>
+        <button id="clear-token" class="button button-outline" type="button">Clear token</button>
+      </div>
+      <p class="security-note">Use only on the URSB LAN/VPN with your own authorised token. Document viewing does not send this token.</p>
+    </section>
+
+    <section class="workspace" aria-label="OBRS actions">
+      <nav class="tabs" role="tablist" aria-label="Choose an action">
+        <button class="tab active" id="tab-documents" type="button" role="tab" aria-selected="true" aria-controls="panel-documents" data-tab="documents">
+          <span class="tab-number">01</span> EDMS documents
+        </button>
+        <button class="tab" id="tab-view" type="button" role="tab" aria-selected="false" aria-controls="panel-view" data-tab="view">
+          <span class="tab-number">02</span> View document
+        </button>
+        <button class="tab" id="tab-unlock" type="button" role="tab" aria-selected="false" aria-controls="panel-unlock" data-tab="unlock">
+          <span class="tab-number">03</span> Remove banner
+        </button>
+        <button class="tab" id="tab-legal" type="button" role="tab" aria-selected="false" aria-controls="panel-legal" data-tab="legal">
+          <span class="tab-number">04</span> Legal document
+        </button>
+        <button class="tab" id="tab-payment" type="button" role="tab" aria-selected="false" aria-controls="panel-payment" data-tab="payment">
+          <span class="tab-number">05</span> Confirm payment
+        </button>
+      </nav>
+
+      <section class="panel action-panel tab-panel" id="panel-documents" role="tabpanel" aria-labelledby="tab-documents" data-panel="documents">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Company records</p>
+            <h2>Get all EDMS documents</h2>
+          </div>
+        </div>
+        <form id="documents-form" class="form-row">
+          <label for="documents-brn">Business Registration Number (BRN)</label>
+          <div class="input-action">
+            <input id="documents-brn" name="brn" required maxlength="256" placeholder="Enter BRN">
+            <button class="button button-primary" type="submit"><span class="button-label">Get documents</span></button>
+          </div>
+        </form>
+        <div id="documents-result" class="result-area" aria-live="polite"></div>
+      </section>
+
+      <section class="panel action-panel tab-panel" id="panel-view" role="tabpanel" aria-labelledby="tab-view" data-panel="view" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">EDMS file</p>
+            <h2>View a document</h2>
+          </div>
+        </div>
+        <form id="view-form" class="form-row">
+          <label for="signing-code">Signing code</label>
+          <div class="input-action">
+            <input id="signing-code" name="signingCode" required maxlength="256" placeholder="Enter signing code">
+            <button class="button button-primary" type="submit"><span class="button-label">View document</span></button>
+          </div>
+        </form>
+        <div id="view-result" class="result-area" aria-live="polite"></div>
+      </section>
+
+      <section class="panel action-panel tab-panel" id="panel-unlock" role="tabpanel" aria-labelledby="tab-unlock" data-panel="unlock" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Company file</p>
+            <h2>Remove banner / unlock file</h2>
+          </div>
+        </div>
+        <p class="muted-copy">This changes the company file. You will be asked to confirm before the request is sent.</p>
+        <form id="unlock-form" class="form-row">
+          <label for="unlock-brn">Business Registration Number (BRN)</label>
+          <div class="input-action">
+            <input id="unlock-brn" name="brn" required maxlength="256" placeholder="Enter BRN">
+            <button class="button button-danger" type="submit"><span class="button-label">Remove banner</span></button>
+          </div>
+        </form>
+        <div id="unlock-result" class="result-area" aria-live="polite"></div>
+        <section class="recent-section" aria-labelledby="recent-heading">
+          <div class="section-heading compact-heading">
+            <div>
+              <p class="eyebrow">This session</p>
+              <h3 id="recent-heading">Recent actions</h3>
+            </div>
+          </div>
+          <div id="recent-actions" class="recent-list"><p class="empty-note">No actions yet.</p></div>
+        </section>
+      </section>
+
+      <section class="panel action-panel tab-panel" id="panel-legal" role="tabpanel" aria-labelledby="tab-legal" data-panel="legal" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Registry copy</p>
+            <h2>View legal document</h2>
+          </div>
+        </div>
+        <form id="legal-form" class="form-row">
+          <label for="instrument-number">Instrument number</label>
+          <div class="input-action">
+            <input id="instrument-number" name="instrumentNumber" required maxlength="256" placeholder="Enter instrument number">
+            <button class="button button-primary" type="submit"><span class="button-label">Get legal document</span></button>
+          </div>
+        </form>
+        <div id="legal-result" class="result-area" aria-live="polite"></div>
+      </section>
+
+      <section class="panel action-panel tab-panel" id="panel-payment" role="tabpanel" aria-labelledby="tab-payment" data-panel="payment" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Billing</p>
+            <h2>Confirm a payment</h2>
+          </div>
+        </div>
+        <p class="muted-copy">Enter a tracking number or PRN to check its payment status.</p>
+        <form id="payment-form" class="form-row">
+          <label for="payment-reference">Tracking number or PRN</label>
+          <div class="input-action">
+            <input id="payment-reference" name="reference" required maxlength="256" placeholder="Enter tracking number or PRN">
+            <button class="button button-primary" type="submit"><span class="button-label">Confirm payment</span></button>
+          </div>
+        </form>
+        <div id="payment-result" class="result-area" aria-live="polite"></div>
+      </section>
+    </section>
+
+    <footer class="footer">OBRS Helper <span aria-hidden="true">·</span> For authorised registry use</footer>
+  </main>
+</body>
+</html>
