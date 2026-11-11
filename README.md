@@ -10,7 +10,7 @@ A small web app for authorised registry staff to use OBRS operations without Pos
 ## Setup
 
 1. Copy `.env.example` to `config/.env` (or copy `config/.env.example` there).
-2. Set `OBRS_BASE_URL=https://obrs-api.ursb.go.ug` in `config/.env`. Optionally set `PORT` (defaults to `3000`).
+2. Set `OBRS_BASE_URL=https://obrs-api.ursb.go.ug` in `config/.env`. `PORT` defaults to `3000`, and `HOST` defaults to `127.0.0.1`.
 3. Run from the project directory:
 
    ```sh
@@ -29,3 +29,4 @@ The unlock-file request uses **POST**, as confirmed for this installation. Its m
 - Payment confirmation uses `GET /billing/transaction/query?reference=...`; the parameter name is defined by `PAYMENT_REFERENCE_QUERY_PARAM` in `server.js`.
 - Document viewers include a direct OBRS link for opening or sharing outside the app; recipients still need network access to the OBRS service.
 - The app does not log request headers or request values. Use an appropriately protected local machine and network.
+- For LAN/VPN deployment, set `HOST=0.0.0.0` only on a server protected by a firewall or reverse proxy that limits access to URSB LAN/VPN users. Do not expose the app directly to the public internet.

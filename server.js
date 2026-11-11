@@ -5,6 +5,7 @@ require('dotenv').config({ path: path.join(__dirname, 'config', '.env') });
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || '127.0.0.1';
 const BASE_URL = (process.env.OBRS_BASE_URL || 'https://obrs-api.ursb.go.ug').replace(/\/+$/, '');
 const UNLOCK_METHOD = 'POST';
 const PAYMENT_REFERENCE_QUERY_PARAM = 'reference';
@@ -202,6 +203,6 @@ app.use('/api', api);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 app.get('*', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
 
-app.listen(PORT, '127.0.0.1', () => {
-  process.stdout.write(`OBRS Helper listening on port ${PORT}\n`);
+app.listen(PORT, HOST, () => {
+  process.stdout.write(`OBRS Helper listening on ${HOST}:${PORT}\n`);
 });
