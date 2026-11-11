@@ -19,6 +19,7 @@
       </div>
     </div>
     <div class="topbar-actions">
+      <span id="signed-in-user" class="secure-label" hidden></span>
       <span class="secure-label"><span aria-hidden="true">●</span> Private session</span>
       <button id="app-logout" class="button button-outline" type="button" hidden>Sign out</button>
     </div>
@@ -30,11 +31,15 @@
       <h2 id="login-heading">Sign in to OBRS Helper</h2>
       <p class="muted-copy">Enter the access password provided by your administrator.</p>
       <form id="app-login-form" class="form-row">
-        <label for="app-password">App access password</label>
-        <div class="input-action">
-          <input id="app-password" name="password" type="password" autocomplete="current-password" required>
-          <button class="button button-primary" type="submit">Sign in</button>
+        <div id="login-username-row" class="login-field" hidden>
+          <label for="app-username">Username</label>
+          <input id="app-username" name="username" autocomplete="username" maxlength="32">
         </div>
+        <div class="login-field">
+          <label for="app-password">Password</label>
+          <input id="app-password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="button button-primary" type="submit">Sign in</button>
       </form>
       <div id="app-login-result" class="result-area" aria-live="polite"></div>
     </section>
@@ -55,6 +60,28 @@
         <button id="clear-token" class="button button-outline" type="button">Clear token</button>
       </div>
       <p class="security-note">Use only on the URSB LAN/VPN with your own authorised token. Document viewing does not send this token.</p>
+    </section>
+
+    <section id="user-management" class="panel user-panel" aria-labelledby="user-management-heading" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Administrator</p>
+          <h2 id="user-management-heading">Manage user accounts</h2>
+        </div>
+        <button id="refresh-users" class="button button-muted" type="button">Refresh users</button>
+      </div>
+      <form id="user-create-form" class="admin-create-form">
+        <label for="new-username">Username
+          <input id="new-username" name="username" required minlength="3" maxlength="32" autocomplete="off" pattern="[A-Za-z0-9][A-Za-z0-9._-]*">
+        </label>
+        <label for="new-password">Initial password
+          <input id="new-password" name="password" type="password" required minlength="12" maxlength="72" autocomplete="new-password">
+        </label>
+        <button class="button button-primary" type="submit">Create account</button>
+      </form>
+      <p class="muted-copy">Passwords require at least 12 characters. Share new credentials securely; they are not shown again.</p>
+      <div id="user-management-result" class="result-area" aria-live="polite"></div>
+      <div id="user-list" class="user-list"><p class="empty-note">Loading accounts…</p></div>
     </section>
 
     <section class="workspace" aria-label="OBRS actions">

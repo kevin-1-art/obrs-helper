@@ -76,8 +76,21 @@ button { cursor: pointer; }
 }
 .login-panel { max-width: 520px; margin: 10vh auto 0; padding: 28px; }
 .login-panel h2 { margin: 0; font-size: 21px; }
-.login-panel .form-row { margin-top: 21px; }
+.login-panel .form-row { display: grid; gap: 12px; margin-top: 21px; }
+.login-field label, .admin-create-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 650; }
+.login-field input { width: 100%; }
 .token-panel { padding: 21px 24px 18px; }
+.user-panel { margin-top: 18px; padding: 22px 24px; }
+.user-panel h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
+.admin-create-form { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(190px, 1fr) auto; align-items: end; gap: 10px; margin-top: 18px; }
+.admin-create-form input { width: 100%; }
+.user-list { margin-top: 18px; }
+.user-list table { min-width: 640px; }
+.user-status-active { color: #287044; font-weight: 650; }
+.user-status-inactive { color: #a63c3c; font-weight: 650; }
+.user-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.user-actions form { display: flex; gap: 6px; }
+.user-actions input { width: 180px; height: 34px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .section-heading h2 { font-size: 20px; letter-spacing: -.02em; }
 .memory-note { color: var(--muted); font-size: 12px; }
@@ -204,6 +217,10 @@ details.raw-panel pre { max-height: 320px; overflow: auto; margin: 0; padding: 1
   .topbar .button-outline { min-height: 35px; padding: 0 9px; font-size: 11px; }
   .page { width: calc(100% - 28px); margin: 19px auto; }
   .login-panel { margin-top: 7vh; padding: 21px 16px; }
+  .user-panel { padding: 18px 16px; }
+  .admin-create-form { grid-template-columns: 1fr; align-items: stretch; }
+  .user-actions form { flex-direction: column; }
+  .user-actions input { width: 100%; }
   .token-panel { padding: 18px 16px 15px; }
   .token-row { flex-wrap: wrap; }
   .token-row input { flex-basis: 100%; }

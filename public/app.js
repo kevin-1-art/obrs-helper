@@ -6,12 +6,20 @@ const appContent = document.querySelector('#app-content');
 const loginForm = document.querySelector('#app-login-form');
 const loginResult = document.querySelector('#app-login-result');
 const appPasswordInput = document.querySelector('#app-password');
+const appUsernameInput = document.querySelector('#app-username');
+const loginUsernameRow = document.querySelector('#login-username-row');
 const appLogoutButton = document.querySelector('#app-logout');
+const signedInUser = document.querySelector('#signed-in-user');
+const userManagement = document.querySelector('#user-management');
+const userManagementResult = document.querySelector('#user-management-result');
+const userList = document.querySelector('#user-list');
 const TOKEN_STORAGE_KEY = 'obrsBearerToken';
 const recentActions = [];
 let currentObjectUrl = null;
 let documents = [];
 let appAccessRequired = false;
+let authMode = 'none';
+let currentUsername = null;
 
 tokenInput.value = sessionStorage.getItem(TOKEN_STORAGE_KEY) || '';
 
@@ -55,14 +63,20 @@ function showLogin(message) {
   appContent.hidden = true;
   loginGate.hidden = false;
   appLogoutButton.hidden = true;
+  signedInUser.hidden = true;
   if (message) setStatus(loginResult, message, 'error');
-  appPasswordInput.focus();
+  (authMode === 'accounts' ? appUsernameInput : appPasswordInput).focus();
 }
 
-function showApp() {
+function showApp(profile) {
   loginGate.hidden = true;
   appContent.hidden = false;
   appLogoutButton.hidden = !appAccessRequired;
+  currentUsername = profile && profile.username ? profile.username : null;
+  signedInUser.textContent = currentUsername || '';
+  signedInUser.hidden = !currentUsername;
+  userManagement.hidden = !Boolean(profile && profile.isAdmin);
+  if (!userManagement.hidden) loadUsers();
   loginResult.replaceChildren();
 }
 
@@ -628,6 +642,183 @@ document.querySelector('#legal-form').addEventListener('submit', (event) => {
   }
 });
 
+async function adminRequest(url, options) {
+  const response = await fetch(url, options);
+  const text = await response.text();
+  let body = null;
+  try { body = text ? JSON.parse(text) : null; } catch { body = null; }
+  if (!response.ok) {
+    if (handleAppAuthFailure(body)) throw new Error('Sign in to OBRS Helper.');
+    throw new Error(body && typeof body.error === 'string' ? body.error : `Request failed (${response.status})`);
+  }
+  return body;
+}
+
+function renderUsers(users) {
+  userList.replaceChildren();
+  if (!users.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty-note';
+    empty.textContent = 'No accounts found.';
+    userList.append(empty);
+    return;
+  }
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'table-wrap';
+  const table = document.createElement('table');
+  const header = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  ['Username', 'Role', 'Status', 'Created', 'Actions'].forEach((label) => {
+    const th = document.createElement('th');
+    th.textContent = label;
+    headerRow.append(th);
+  });
+  header.append(headerRow);
+  const body = document.createElement('tbody');
+  for (const user of users) {
+    const row = document.createElement('tr');
+    [user.username, user.role, user.active ? 'Active' : 'Inactive',
+      Number.isNaN(Date.parse(user.createdAt)) ? '—' : new Date(user.createdAt).toLocaleString()
+    ].forEach((value, index) => {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      if (index === 2) cell.className = user.active ? 'user-status-active' : 'user-status-inactive';
+      row.append(cell);
+    });
+
+    const actions = document.createElement('td');
+    const group = document.createElement('div');
+    group.className = 'user-actions';
+    const resetForm = document.createElement('form');
+    const password = document.createElement('input');
+    password.type = 'password';
+    password.required = true;
+    password.minLength = 12;
+    password.maxLength = 72;
+    password.autocomplete = 'new-password';
+    password.placeholder = 'New password (12+ chars)';
+    password.setAttribute('aria-label', `New password for ${user.username}`);
+    const resetButton = document.createElement('button');
+    resetButton.className = 'small-button';
+    resetButton.type = 'submit';
+    resetButton.textContent = 'Reset password';
+    resetForm.append(password, resetButton);
+    resetForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      resetButton.disabled = true;
+      try {
+        await adminRequest(`/api/admin/users/${encodeURIComponent(user.id)}/password`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password.value })
+        });
+        password.value = '';
+        setStatus(userManagementResult, `Password reset for ${user.username}.`, 'success');
+        if (user.username === currentUsername) {
+          await fetch('/api/auth/logout', { method: 'POST' });
+          clearBearerToken();
+          showLogin('Your password was reset. Sign in with the new password.');
+        }
+      } catch (error) {
+        setStatus(userManagementResult, error.message, 'error');
+      } finally {
+        resetButton.disabled = false;
+      }
+    });
+    group.append(resetForm);
+
+    if (user.role === 'user') {
+      const statusButton = document.createElement('button');
+      statusButton.className = 'small-button';
+      statusButton.type = 'button';
+      statusButton.textContent = user.active ? 'Deactivate' : 'Reactivate';
+      statusButton.addEventListener('click', async () => {
+        if (user.active && !window.confirm(`Deactivate ${user.username}? Their current sessions will be revoked.`)) return;
+        statusButton.disabled = true;
+        try {
+          await adminRequest(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active: !user.active })
+          });
+          setStatus(userManagementResult, `${user.username} ${user.active ? 'deactivated' : 'reactivated'}.`, 'success');
+          await loadUsers();
+        } catch (error) {
+          setStatus(userManagementResult, error.message, 'error');
+        } finally {
+          statusButton.disabled = false;
+        }
+      });
+
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'small-button';
+      deleteButton.type = 'button';
+      deleteButton.textContent = 'Delete';
+      deleteButton.addEventListener('click', async () => {
+        if (!window.confirm(`Permanently delete the account ${user.username}?`)) return;
+        deleteButton.disabled = true;
+        try {
+          await adminRequest(`/api/admin/users/${encodeURIComponent(user.id)}`, { method: 'DELETE' });
+          setStatus(userManagementResult, `${user.username} deleted.`, 'success');
+          await loadUsers();
+        } catch (error) {
+          setStatus(userManagementResult, error.message, 'error');
+        } finally {
+          deleteButton.disabled = false;
+        }
+      });
+      group.append(statusButton, deleteButton);
+    } else {
+      const note = document.createElement('span');
+      note.className = 'empty-note';
+      note.textContent = 'Bootstrap administrator';
+      group.append(note);
+    }
+    actions.append(group);
+    row.append(actions);
+    body.append(row);
+  }
+  table.append(header, body);
+  tableWrap.append(table);
+  userList.append(tableWrap);
+}
+
+async function loadUsers() {
+  try {
+    const result = await adminRequest('/api/admin/users', { method: 'GET' });
+    if (!result || !Array.isArray(result.users)) throw new Error('Unexpected account list response.');
+    renderUsers(result.users);
+  } catch (error) {
+    setStatus(userManagementResult, error.message, 'error');
+  }
+}
+
+document.querySelector('#refresh-users').addEventListener('click', loadUsers);
+
+document.querySelector('#user-create-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const username = form.elements.username.value.trim();
+  const passwordInput = form.elements.password;
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    const result = await adminRequest('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password: passwordInput.value })
+    });
+    passwordInput.value = '';
+    form.elements.username.value = '';
+    setStatus(userManagementResult, `Account ${result.user.username} created. Share the password securely; it cannot be viewed again.`, 'success');
+    await loadUsers();
+  } catch (error) {
+    setStatus(userManagementResult, error.message, 'error');
+  } finally {
+    button.disabled = false;
+  }
+});
+
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = loginForm.querySelector('button[type="submit"]');
@@ -636,13 +827,20 @@ loginForm.addEventListener('submit', async (event) => {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: appPasswordInput.value })
+      body: JSON.stringify({
+        username: appUsernameInput.value,
+        password: appPasswordInput.value
+      })
     });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'Sign-in failed.');
     appAccessRequired = Boolean(body.required);
+    authMode = body.mode || authMode;
+    loginUsernameRow.hidden = authMode !== 'accounts';
+    appUsernameInput.required = authMode === 'accounts';
     appPasswordInput.value = '';
-    showApp();
+    appUsernameInput.value = '';
+    showApp(body);
   } catch (error) {
     setStatus(loginResult, error.message === 'Failed to fetch' ? 'OBRS service unavailable' : error.message, 'error');
   } finally {
@@ -670,7 +868,17 @@ async function initializeAppAccess() {
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'Could not verify sign-in.');
     appAccessRequired = Boolean(body.required);
-    if (body.authenticated) showApp();
+    authMode = body.mode || 'none';
+    loginUsernameRow.hidden = authMode !== 'accounts';
+    appUsernameInput.required = authMode === 'accounts';
+    if (authMode === 'accounts') {
+      document.querySelector('#login-heading').textContent = 'Sign in to OBRS Helper';
+      loginGate.querySelector('.muted-copy').textContent = 'Enter the username and password assigned by your administrator.';
+    } else if (authMode === 'shared') {
+      document.querySelector('#login-heading').textContent = 'Sign in to OBRS Helper';
+      loginGate.querySelector('.muted-copy').textContent = 'Enter the access password provided by your administrator.';
+    }
+    if (body.authenticated) showApp(body);
     else showLogin();
   } catch (error) {
     showLogin(error.message === 'Failed to fetch' ? 'OBRS service unavailable' : error.message);
