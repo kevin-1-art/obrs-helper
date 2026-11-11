@@ -31,10 +31,14 @@ const BOOTSTRAP_LOCK_ID = 918273645;
 const PASSWORD_MIN_LENGTH = 12;
 const PASSWORD_MAX_BYTES = 72;
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 12);
+const DATABASE_HOST = DATABASE_URL ? new URL(DATABASE_URL).hostname : '';
+const DATABASE_SSL = process.env.NODE_ENV === 'production' && !/^dpg-[a-z0-9-]+-[a-z]$/i.test(DATABASE_HOST)
+  ? { rejectUnauthorized: true }
+  : undefined;
 const authPool = DATABASE_AUTH_ENABLED
   ? new Pool({
       connectionString: DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined,
+      ssl: DATABASE_SSL,
       max: 5,
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 10000

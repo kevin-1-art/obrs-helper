@@ -14,10 +14,15 @@ services:
       - key: OBRS_BASE_URL
         value: https://obrs-api.ursb.go.ug
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: obrs
+          property: connectionString
       - key: BOOTSTRAP_ADMIN_USERNAME
         sync: false
       - key: BOOTSTRAP_ADMIN_PASSWORD
         sync: false
       - key: APP_SESSION_SECRET
         generateValue: true
+
+databases:
+  - name: obrs
