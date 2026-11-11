@@ -1,16 +1,33 @@
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { Readable } = require('node:stream');
 const express = require('express');
+const { rateLimit } = require('express-rate-limit');
 require('dotenv').config({ path: path.join(__dirname, 'config', '.env') });
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 const BASE_URL = (process.env.OBRS_BASE_URL || 'https://obrs-api.ursb.go.ug').replace(/\/+$/, '');
+const APP_ACCESS_PASSWORD = process.env.APP_ACCESS_PASSWORD || '';
+const APP_SESSION_SECRET = process.env.APP_SESSION_SECRET || '';
 const UNLOCK_METHOD = 'POST';
 const PAYMENT_REFERENCE_QUERY_PARAM = 'reference';
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const VALUE_LIMIT = 256;
+const SESSION_COOKIE = 'obrs_helper_session';
+const SESSION_TTL_SECONDS = 8 * 60 * 60;
+const APP_AUTH_ENABLED = Boolean(APP_ACCESS_PASSWORD && APP_SESSION_SECRET);
+
+if (Boolean(APP_ACCESS_PASSWORD) !== Boolean(APP_SESSION_SECRET)) {
+  throw new Error('APP_ACCESS_PASSWORD and APP_SESSION_SECRET must both be configured.');
+}
+if (process.env.NODE_ENV === 'production' && !APP_AUTH_ENABLED) {
+  throw new Error('APP_ACCESS_PASSWORD and APP_SESSION_SECRET are required in production.');
+}
+if (APP_AUTH_ENABLED && APP_SESSION_SECRET.length < 32) {
+  throw new Error('APP_SESSION_SECRET must be at least 32 characters long.');
+}
 
 let parsedBaseUrl;
 try {
@@ -23,6 +40,7 @@ try {
 }
 
 app.disable('x-powered-by');
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 app.use((req, res, next) => {
   res.set({
     'Cache-Control': 'no-store',
@@ -33,8 +51,87 @@ app.use((req, res, next) => {
   });
   next();
 });
+app.use(express.json({ limit: '2kb' }));
 
 app.use(express.static(PUBLIC_DIR, { etag: false, lastModified: false, maxAge: 0 }));
+
+function safeEqual(left, right) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function sessionCookieValue() {
+  const expiresAt = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+  const signature = crypto
+    .createHmac('sha256', APP_SESSION_SECRET)
+    .update(`${expiresAt}:${APP_ACCESS_PASSWORD}`)
+    .digest('base64url');
+  return `${expiresAt}.${signature}`;
+}
+
+function hasValidAppSession(req) {
+  if (!APP_AUTH_ENABLED) return true;
+  const cookieHeader = req.get('cookie') || '';
+  const sessionCookie = cookieHeader.split(';').map((part) => part.trim())
+    .find((part) => part.startsWith(`${SESSION_COOKIE}=`));
+  if (!sessionCookie) return false;
+  const value = sessionCookie.slice(SESSION_COOKIE.length + 1);
+  const [expiresText, providedSignature] = value.split('.');
+  const expiresAt = Number(expiresText);
+  if (!Number.isInteger(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000) || !providedSignature) {
+    return false;
+  }
+  const expectedSignature = crypto
+    .createHmac('sha256', APP_SESSION_SECRET)
+    .update(`${expiresAt}:${APP_ACCESS_PASSWORD}`)
+    .digest('base64url');
+  return safeEqual(providedSignature, expectedSignature);
+}
+
+function setAppSessionCookie(res) {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.set('Set-Cookie', `${SESSION_COOKIE}=${sessionCookieValue()}; Path=/; Max-Age=${SESSION_TTL_SECONDS}; HttpOnly; SameSite=Strict${secure}`);
+}
+
+function clearAppSessionCookie(res) {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.set('Set-Cookie', `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict${secure}`);
+}
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many sign-in attempts. Try again later.' }
+});
+
+app.get('/api/auth/session', (req, res) => {
+  res.json({ authenticated: hasValidAppSession(req), required: APP_AUTH_ENABLED });
+});
+
+app.post('/api/auth/login', loginLimiter, (req, res) => {
+  if (!APP_AUTH_ENABLED) return res.json({ authenticated: true, required: false });
+  const password = req.body && typeof req.body.password === 'string' ? req.body.password : '';
+  if (!safeEqual(password, APP_ACCESS_PASSWORD)) {
+    return res.status(401).json({ error: 'Incorrect app password.' });
+  }
+  setAppSessionCookie(res);
+  return res.json({ authenticated: true, required: true });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  clearAppSessionCookie(res);
+  res.json({ authenticated: false });
+});
+
+function requireAppSession(req, res, next) {
+  if (!hasValidAppSession(req)) {
+    return res.status(401).json({ error: 'Sign in to OBRS Helper.', code: 'APP_AUTH_REQUIRED' });
+  }
+  next();
+}
 
 function requireToken(req, res, next) {
   const authorization = req.get('authorization') || '';
@@ -130,6 +227,7 @@ async function fetchUpstream(req, res, method, route, query, binary) {
 }
 
 const api = express.Router();
+api.use(requireAppSession);
 
 api.get('/documents', requireToken, (req, res) => {
   const brn = requiredValue(req, res, 'brn');

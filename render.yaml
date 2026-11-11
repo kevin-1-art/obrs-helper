@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: obrs-helper
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/auth/session
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: OBRS_BASE_URL
+        value: https://obrs-api.ursb.go.ug
+      - key: APP_ACCESS_PASSWORD
+        sync: false
+      - key: APP_SESSION_SECRET
+        generateValue: true

@@ -1,10 +1,17 @@
 const tokenInput = document.querySelector('#token');
 const toggleTokenButton = document.querySelector('#toggle-token');
 const clearTokenButton = document.querySelector('#clear-token');
+const loginGate = document.querySelector('#login-gate');
+const appContent = document.querySelector('#app-content');
+const loginForm = document.querySelector('#app-login-form');
+const loginResult = document.querySelector('#app-login-result');
+const appPasswordInput = document.querySelector('#app-password');
+const appLogoutButton = document.querySelector('#app-logout');
 const TOKEN_STORAGE_KEY = 'obrsBearerToken';
 const recentActions = [];
 let currentObjectUrl = null;
 let documents = [];
+let appAccessRequired = false;
 
 tokenInput.value = sessionStorage.getItem(TOKEN_STORAGE_KEY) || '';
 
@@ -44,6 +51,29 @@ function clearBearerToken() {
   toggleTokenButton.setAttribute('aria-pressed', 'false');
 }
 
+function showLogin(message) {
+  appContent.hidden = true;
+  loginGate.hidden = false;
+  appLogoutButton.hidden = true;
+  if (message) setStatus(loginResult, message, 'error');
+  appPasswordInput.focus();
+}
+
+function showApp() {
+  loginGate.hidden = true;
+  appContent.hidden = false;
+  appLogoutButton.hidden = !appAccessRequired;
+  loginResult.replaceChildren();
+}
+
+function handleAppAuthFailure(body) {
+  if (body && body.code === 'APP_AUTH_REQUIRED') {
+    showLogin('Your app session expired. Sign in again.');
+    return true;
+  }
+  return false;
+}
+
 async function requestJson(url, options, includeToken = true) {
   let response;
   try {
@@ -61,6 +91,9 @@ async function requestJson(url, options, includeToken = true) {
     parsed = null;
   }
   if (!response.ok) {
+    if (handleAppAuthFailure(parsed)) {
+      throw new Error('Sign in to OBRS Helper.');
+    }
     if (includeToken && response.status === 401) clearBearerToken();
     throw new Error(errorMessage(response.status, parsed));
   }
@@ -68,6 +101,7 @@ async function requestJson(url, options, includeToken = true) {
 }
 
 function errorMessage(status, body) {
+  if (body && body.code === 'APP_AUTH_REQUIRED') return 'Sign in to OBRS Helper.';
   if (status === 401) return 'Token expired or invalid, paste a new one';
   if (status === 403) return 'Forbidden';
   if (status === 404) return 'Not found';
@@ -365,6 +399,7 @@ async function showDocument(url, container, button, successText) {
     if (!response.ok) {
       let body = null;
       try { body = await response.json(); } catch { /* No JSON error payload. */ }
+      if (handleAppAuthFailure(body)) throw new Error('Sign in to OBRS Helper.');
       throw new Error(errorMessage(response.status, body));
     }
     const contentType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
@@ -592,6 +627,57 @@ document.querySelector('#legal-form').addEventListener('submit', (event) => {
     setStatus(container, error.message, 'error');
   }
 });
+
+loginForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = loginForm.querySelector('button[type="submit"]');
+  setLoading(loginResult, button, 'Signing in…');
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: appPasswordInput.value })
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || 'Sign-in failed.');
+    appAccessRequired = Boolean(body.required);
+    appPasswordInput.value = '';
+    showApp();
+  } catch (error) {
+    setStatus(loginResult, error.message === 'Failed to fetch' ? 'OBRS service unavailable' : error.message, 'error');
+  } finally {
+    button.disabled = false;
+  }
+});
+
+appLogoutButton.addEventListener('click', async () => {
+  appLogoutButton.disabled = true;
+  try {
+    const response = await fetch('/api/auth/logout', { method: 'POST' });
+    if (!response.ok) throw new Error('Could not sign out. Try again.');
+    clearBearerToken();
+    showLogin('You have signed out.');
+  } catch (error) {
+    setStatus(loginResult, error.message, 'error');
+  } finally {
+    appLogoutButton.disabled = false;
+  }
+});
+
+async function initializeAppAccess() {
+  try {
+    const response = await fetch('/api/auth/session');
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || 'Could not verify sign-in.');
+    appAccessRequired = Boolean(body.required);
+    if (body.authenticated) showApp();
+    else showLogin();
+  } catch (error) {
+    showLogin(error.message === 'Failed to fetch' ? 'OBRS service unavailable' : error.message);
+  }
+}
+
+initializeAppAccess();
 
 document.querySelector('#payment-form').addEventListener('submit', async (event) => {
   event.preventDefault();

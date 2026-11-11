@@ -35,6 +35,9 @@ button { cursor: pointer; }
   color: #fff;
 }
 
+.topbar-actions { display: flex; align-items: center; gap: 12px; }
+.topbar .button-outline { border-color: rgb(255 255 255 / 32%); background: transparent; color: #fff; }
+.topbar .button-outline:hover { background: rgb(255 255 255 / 10%); }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
   width: 42px;
@@ -64,12 +67,16 @@ button { cursor: pointer; }
 .secure-label span { margin-right: 6px; color: #84d1ad; font-size: 10px; }
 
 .page { width: min(1120px, calc(100% - 40px)); margin: 34px auto; }
+[hidden] { display: none !important; }
 .panel {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
+.login-panel { max-width: 520px; margin: 10vh auto 0; padding: 28px; }
+.login-panel h2 { margin: 0; font-size: 21px; }
+.login-panel .form-row { margin-top: 21px; }
 .token-panel { padding: 21px 24px 18px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .section-heading h2 { font-size: 20px; letter-spacing: -.02em; }
@@ -192,7 +199,11 @@ details.raw-panel pre { max-height: 320px; overflow: auto; margin: 0; padding: 1
 
 @media (max-width: 640px) {
   .topbar { min-height: 72px; padding: 12px 18px; }
+  .topbar-actions { gap: 7px; }
+  .secure-label { font-size: 10px; }
+  .topbar .button-outline { min-height: 35px; padding: 0 9px; font-size: 11px; }
   .page { width: calc(100% - 28px); margin: 19px auto; }
+  .login-panel { margin-top: 7vh; padding: 21px 16px; }
   .token-panel { padding: 18px 16px 15px; }
   .token-row { flex-wrap: wrap; }
   .token-row input { flex-basis: 100%; }

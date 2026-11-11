@@ -18,10 +18,28 @@
         <h1>OBRS Helper</h1>
       </div>
     </div>
-    <span class="secure-label"><span aria-hidden="true">●</span> Private session</span>
+    <div class="topbar-actions">
+      <span class="secure-label"><span aria-hidden="true">●</span> Private session</span>
+      <button id="app-logout" class="button button-outline" type="button" hidden>Sign out</button>
+    </div>
   </header>
 
   <main class="page">
+    <section id="login-gate" class="login-panel panel" aria-labelledby="login-heading" hidden>
+      <p class="eyebrow">Authorised access</p>
+      <h2 id="login-heading">Sign in to OBRS Helper</h2>
+      <p class="muted-copy">Enter the access password provided by your administrator.</p>
+      <form id="app-login-form" class="form-row">
+        <label for="app-password">App access password</label>
+        <div class="input-action">
+          <input id="app-password" name="password" type="password" autocomplete="current-password" required>
+          <button class="button button-primary" type="submit">Sign in</button>
+        </div>
+      </form>
+      <div id="app-login-result" class="result-area" aria-live="polite"></div>
+    </section>
+
+    <div id="app-content" hidden>
     <section class="token-panel panel" aria-labelledby="token-heading">
       <div class="section-heading">
         <div>
@@ -156,6 +174,7 @@
     </section>
 
     <footer class="footer">OBRS Helper <span aria-hidden="true">·</span> For authorised registry use</footer>
+    </div>
   </main>
 </body>
 </html>
